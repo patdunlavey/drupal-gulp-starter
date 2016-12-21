@@ -1,0 +1,32 @@
+machine:
+  environment:
+    SERVER: edc-hv-impact.dev
+    PATH: "$HOME/.composer/vendor/bin:$PATH"
+  #php:
+  #  version: 5.5.1
+  hosts:
+    SERVER: 127.0.0.1
+dependencies:
+  pre:
+    - sudo cp cnf/circle.conf /etc/apache2/sites-available/default
+    - sudo sed -e "s?%HOME%?$(pwd)?g" --in-place /etc/apache2/sites-available/default
+    - sudo sed -e "s?%PROJECT_DIR%?www?g" --in-place /etc/apache2/sites-available/default
+    - sudo sed -e "s?%SERVER%?SERVER?g" --in-place /etc/apache2/sites-available/default
+    - sudo a2enmod rewrite
+    - sudo service apache2 restart
+    - sudo cp cnf/settings.circle.php /home/ubuntu/edc-hv-impact/sites/default/settings.php
+    #- build/install.sh
+  override:
+    #- npm install
+    #- npm install gulp
+    #- composer install --prefer-dist
+    #- mysql -u ubuntu circle_test < mydb.sql
+  post:
+    - sudo chown -R $(whoami):www-data /home/ubuntu/edc-hv-impact
+    #- composer update
+test:
+  override:
+    #- bin/behat -f pretty
+    - node_modules/.bin/gulp check:phplint
+    - node_modules/.bin/gulp check:phpcs
+    - node_modules/.bin/gulp check:sasslint
