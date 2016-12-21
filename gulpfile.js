@@ -7,13 +7,15 @@
 'use strict';
 
 var gulp = require('gulp');
-var browserSync = require('browser-sync');
+// var browserSync = require('browser-sync');
 var sass = require('gulp-sass');
 var prefix = require('gulp-autoprefixer');
 var shell = require('gulp-shell');
 var phpcs = require('gulp-phpcs');
 var eslint = require('gulp-eslint');
 var phplint = require('gulp-phplint');
+var sassLint = require('gulp-sass-lint');
+var sourcemaps = require('gulp-sourcemaps');
 
 // Load in configuration.  You don't have to use this,
 // but it makes it easier to update tasks in the future
@@ -26,13 +28,17 @@ var config = require('./gulpconfig');
  */
 gulp.task('sass', function () {
   // This needs to be changed to point to the source styles.scss file for the project theme.
-  return gulp.src('core/themes/bartik/scss/styles.scss')
-  // pass the file through gulp-sass
-  .pipe(sass())
-  // pass the file through autoprefixer
-  .pipe(prefix(['last 15 versions', '> 1%', 'ie 8', 'ie 7'], {cascade: true}))
-  // output .css file to css folder
-  .pipe(gulp.dest('core/themes/bartik/css'));
+  return gulp.src(config.theme_path + '/sass/styles.scss')
+    // initialize sourcemaps
+    .pipe(sourcemaps.init())
+    // pass the file through gulp-sass
+    .pipe(sass())
+    // pass the file through autoprefixer
+    .pipe(prefix(['last 15 versions', '> 1%', 'ie 8', 'ie 7'], {cascade: true}))
+    // add css sourcemaps
+    .pipe(sourcemaps.write())
+    // output .css file to css folder
+    .pipe(gulp.dest(config.theme_path + '/css'));
 });
 
 /**
@@ -49,18 +55,17 @@ gulp.task('clearcache', shell.task([
  * Clear cache when Drupal related files are changed
  */
 gulp.task('watch', function () {
-  browserSync.init({
-    // This needs to be replaced with your local site's proxy
-    proxy: 'flat/gulp-and-drupal'
-  });
-  var path = 'core/themes/bartik/';
-  gulp.watch([path + 'scss/*.scss', path + 'scss/**/*.scss'], ['sass', 'clearcache', function (done) {
+  // browserSync.init({
+  //   // This needs to be replaced with your local site's proxy
+  //   proxy: 'flat/gulp-and-drupal'
+  // });
+  gulp.watch([config.theme_path + '/sass/*.scss', config.theme_path + '/sass/**/*.scss'], ['sass', function (done) {
     // Comment out this line to prevent the whole browser from reloading
-    browserSync.reload();
+    // browserSync.reload();
   }]);
   gulp.watch('**/*.{php,inc,info}', ['clearcache', function (done) {
     // Comment out this line to prevent the whole browser from reloading
-    browserSync.reload();
+    // browserSync.reload();
   }]);
 });
 
@@ -70,7 +75,7 @@ gulp.task('watch', function () {
  * Add steps here to run during checking phase of the app.
  * Check steps should not require a database to function.
  */
-gulp.task('check', ['check:phplint', 'check:phpcs', 'check:eslint']);
+gulp.task('check', ['check:phplint', 'check:phpcs', 'check:eslint', 'check:sasslint']);
 gulp.task('check:phplint', function () {
   return gulp.src(config.phpCheck)
     .pipe(phplint('', {notify: false, skipPassedFiles: true}))
@@ -79,8 +84,9 @@ gulp.task('check:phplint', function () {
 gulp.task('check:phpcs', function () {
   return gulp.src(config.phpCheck)
     .pipe(phpcs({
-      bin: 'vendor/bin/phpcs',
-      standard: 'vendor/drupal/coder/coder_sniffer/Drupal'
+      // these paths are assuming that composer files are outside the drupal root
+      bin: '../vendor/bin/phpcs',
+      standard: '../vendor/drupal/coder/coder_sniffer/Drupal'
     }))
     .pipe(phpcs.reporter('log'))
     .pipe(phpcs.reporter('fail'));
@@ -91,6 +97,12 @@ gulp.task('check:eslint', function () {
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
+});
+gulp.task('check:sasslint', function() {
+  return gulp.src([config.theme_path + '/sass/*.scss', config.theme_path + '/sass/**/*.scss'])
+    .pipe(sassLint({rules: config.sass_rules}))
+    .pipe(sassLint.format())
+    .pipe(sassLint.failOnError())
 });
 
 /**
