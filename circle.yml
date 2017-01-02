@@ -2,31 +2,57 @@ machine:
   environment:
     SERVER: edc-hv-impact.dev
     PATH: "$HOME/.composer/vendor/bin:$PATH"
-  #php:
-  #  version: 5.5.1
+  php:
+    version: 7.0.4
   hosts:
     SERVER: 127.0.0.1
 dependencies:
   pre:
-    - sudo cp cnf/circle.conf /etc/apache2/sites-available/default
-    - sudo sed -e "s?%HOME%?$(pwd)?g" --in-place /etc/apache2/sites-available/default
-    - sudo sed -e "s?%PROJECT_DIR%?www?g" --in-place /etc/apache2/sites-available/default
-    - sudo sed -e "s?%SERVER%?SERVER?g" --in-place /etc/apache2/sites-available/default
+    - sudo cp cnf/circle.conf /etc/apache2/sites-enabled/000-default.conf
+    - sudo apt-get install php5-mysql
     - sudo a2enmod rewrite
     - sudo service apache2 restart
     - sudo cp cnf/settings.circle.php /home/ubuntu/edc-hv-impact/sites/default/settings.php
-    #- build/install.sh
+    - sudo cp cnf/circle.behat.yml behat.yml
+    - chmod a+x build/install.sh
+    - chmod a+x cnf/push-to-staging.sh
+    - chmod a+x cnf/push-to-master.sh
+    - build/install.sh
+    - sudo rm -rf node_modules
+
   override:
     #- npm install
     #- npm install gulp
     #- composer install --prefer-dist
-    #- mysql -u ubuntu circle_test < mydb.sql
   post:
     - sudo chown -R $(whoami):www-data /home/ubuntu/edc-hv-impact
-    #- composer update
+  cache_directories:
+    - "vendor"
+    - "node_modules"
+database:
+  override:
+    - terminus auth login --machine-token=6oo7IKz8mz1ZAlkLwzpgn4cr7Fb0re86icuqM3EoDERia
+    - db_string=$(/usr/local/bin/terminus site backups get --site=edc-hv-impact --env=dev --element=db --latest); /usr/bin/curl $db_string > my-edc-hv-impact.sql.gz
+    - zcat my-edc-hv-impact.sql.gz | mysql -u ubuntu circle_test
 test:
   override:
-    #- bin/behat -f pretty
     - node_modules/.bin/gulp check:phplint
     - node_modules/.bin/gulp check:phpcs
     - node_modules/.bin/gulp check:sasslint
+    - bin/behat -f pretty --tags="basic-home"
+    - bin/behat -f pretty --tags="auth-home"
+
+deployment:
+  push_to_downstream:
+    branch: [/p-.*/, staging]
+    commands:
+      - git config --global user.email "drupal@commonmedia.com" && git config --global user.name "Common Media CI"
+      - MESSAGE=$(git log --format="%s" -n 1 $CIRCLE_SHA1) ./cnf/push-to-staging.sh:
+          environment:
+            BRANCH: $CIRCLE_BRANCH
+    branch: [/p-.*/, master]
+    commands:
+      - git config --global user.email "drupal@commonmedia.com" && git config --global user.name "Common Media CI"
+      - MESSAGE=$(git log --format="%s" -n 1 $CIRCLE_SHA1) ./cnf/push-to-master.sh:
+          environment:
+            BRANCH: $CIRCLE_BRANCH
