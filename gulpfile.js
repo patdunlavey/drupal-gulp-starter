@@ -59,11 +59,11 @@ gulp.task('watch', function () {
   //   // This needs to be replaced with your local site's proxy
   //   proxy: 'flat/gulp-and-drupal'
   // });
-  gulp.watch([config.theme_path + '/sass/*.scss', config.theme_path + '/sass/**/*.scss'], ['sass', function (done) {
+  gulp.watch([config.theme_path + '/sass/*.scss', config.theme_path + '/sass/**/*.scss'], { interval: 750 }, ['sass', function (done) {
     // Comment out this line to prevent the whole browser from reloading
     // browserSync.reload();
   }]);
-  gulp.watch('**/*.{php,inc,info}', ['clearcache', function (done) {
+  gulp.watch('**/*.{php,inc,info}', { interval: 750 }, ['clearcache', function (done) {
     // Comment out this line to prevent the whole browser from reloading
     // browserSync.reload();
   }]);
