@@ -32,7 +32,7 @@ gulp.task('sass', function () {
     // initialize sourcemaps
     .pipe(sourcemaps.init())
     // pass the file through gulp-sass
-    .pipe(sass())
+    .pipe(sass()).on('error', swallowError)
     // pass the file through autoprefixer
     .pipe(prefix(['last 15 versions', '> 1%', 'ie 8', 'ie 7'], {cascade: true}))
     // add css sourcemaps
@@ -110,3 +110,21 @@ gulp.task('check:sasslint', function() {
  * compile Sass files, launch BrowserSync & watch files.
  */
 gulp.task('default', ['sass', 'watch']);
+
+/**
+ * Swallow errors
+ *
+ * Add `.on('error' swallowError)` after any .pipe() where you do not
+ * want gulp to exit as a result of the error condition.
+ * E.g.
+ *       .pipe(sass()).on('error', swallowError)
+ *
+ * @param error
+ */
+function swallowError (error) {
+
+  // If you want details of the error in the console
+  console.log(error.toString())
+
+  this.emit('end')
+}
